@@ -11,11 +11,11 @@ entity FADD is
 end FADD;
 
 architecture struct of FADD is
-  signal a_s, b_s, c_s, c_s2, c_s3, s : std_logic;
+  signal a_s, b_s, c_s, c_s2, c_s3, c_s31, s : std_logic;
   signal ulp, guardf, guards, round, ulp3, guardf3, guards3, round3 : std_logic;
   signal marume : std_logic;
-  signal a_e, b_e, c_e, c_e2, c_e22, c_e3, c_e4, c_e5, c_e6,  e_diff : std_logic_vector (7 downto 0);
-  signal a_m, b_m, c_m4, c_m5 : std_logic_vector (22 downto 0);
+  signal a_e, b_e, c_e, c_e2, c_e22, c_e3, c_e4, c_e5,  e_diff : std_logic_vector (7 downto 0);
+  signal a_m, b_m, c_m4, c_m5, c_m6 : std_logic_vector (22 downto 0);
   signal l_mm : std_logic_vector (24 downto 0);
   signal w_m,  w_m2, l_m, l_m2 : std_logic_vector (27 downto 0);
   signal c_m, c_m2, c_m3 : std_logic_vector (27 downto 0);
@@ -160,16 +160,19 @@ begin
   c_e5 <= "00000000" when (c_e3 < shift3)
      else c_e4;
 
-  c_e6 <= c_e5;
-
   U1 : BarrelShifterLeft23 port map(c_m3, shift3, c_m4);
 
   c_m5 <= c_m4 + 1 when marume = '1'
            else c_m4;
 
+  c_m6 <= "00000000000000000000000" when ((c_e5 = "00000000") or (c_e5 = "11111111"))     else c_m5;
+
+  c_s31 <= '0' when (c_e5 = "00000000")
+      else c_s3;
+
   process(CLK) begin
     if(CLK'event and CLK = '1') then
-      output <= c_s3 & c_e6 & c_m5;  
+      output <= c_s31 & c_e5 & c_m6;  
     end if;
   end process;
 
