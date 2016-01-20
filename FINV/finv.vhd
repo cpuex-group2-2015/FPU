@@ -16,7 +16,7 @@ architecture struct of FINV is
   signal a1, a12 : std_logic_vector (10 downto 0);
   signal data, data2, data3 : std_logic_vector (35 downto 0);
   signal grad, grad3 : std_logic_vector (23 downto 0);
-  signal a_m3, grad31 : std_logic_vector (22 downto 0);
+  signal a_m3, a_m4, grad31 : std_logic_vector (22 downto 0);
 
 component RAM
   port(
@@ -63,15 +63,20 @@ begin
     end if;
   end process;
 
-  a_e32 <= 253 - a_e3;
+  a_e32 <= "00000000" when ((a_e3 = "11111111") or (a_e3 = "11111110") or (a_e3 = "11111101"))
+      else "11111111" when (a_e3 = "00000000")
+      else 253 - a_e3;
 
   grad31 <= "00000000000" & grad3(23 downto 12);
 
   a_m3 <= data3(35 downto 13) - grad31;
 
+  a_m4 <= "0000000000000000000000000000" when ((a_e3 = "11111111") or (a_e3 = "11111110") or (a_e3 = "11111101") or (a_e3 = "00000000"))
+     else a_m3;
+
   process(CLK) begin
     if(CLK'event and CLK = '1') then
-      output <= a_s3 & a_e32 & a_m3;  
+      output <= a_s3 & a_e32 & a_m4;  
     end if;
   end process;
 
