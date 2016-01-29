@@ -30,6 +30,13 @@ uint32_t fadd(uint32_t a, uint32_t b)
    b_e = (b_e >> 23);
 
 /* 指数部の差分をとりシフトを行う */
+
+if((a == 0x0) || (a == 0x80000000))
+   c = b;
+else if((b == 0x0) || (b == 0x80000000))
+   c = a;
+else{
+
    if((a_e > b_e) || ((a_e == b_e) & (a_m > b_m))) {
       e_diff = a_e - b_e;
       w_m = a_m;
@@ -94,13 +101,15 @@ uint32_t fadd(uint32_t a, uint32_t b)
       if(shift == 27) break;
    }
 
-   if((c_m & 0x7FFFFF8) == 0x7FFFFF8)
-      c_m = 0x0;
 
 
    if(shift == 0 || shift == 1 || shift == 2 || shift ==3){  //丸めの処理
-      if(((c_m & 4) == 4) && (((c_m & 1) == 1) || ((c_m & 2) == 2) || ((c_m & 8) == 8)))
-         c_m = c_m + 8;
+      if(((c_m & 4) == 4) && (((c_m & 1) == 1) || ((c_m & 2) == 2) || ((c_m & 8) == 8)))   {
+         if((c_m & 0x7FFFFF8) == 0x7FFFFF8)
+            c_m = 0x0;
+         else
+            c_m = c_m + 8;
+      }
    }
 
    if((shift == 27) || (c_e < shift)) c_e = 0x00; 
@@ -118,9 +127,10 @@ uint32_t fadd(uint32_t a, uint32_t b)
 
    c_e = c_e << 23;
 
-   if((c_e | c_m) == 0x0) c_s = 0;
 
-   c = c_s | c_e | c_m; //符号部、指数部、仮数部をくっつけて返す
+   c = c_s | c_e | c_m; //符号部、指数部、仮数部をくっつけて返す 
+
+   }
 
    return c;
 }
