@@ -11,15 +11,16 @@ entity FADD is
 end FADD;
 
 architecture struct of FADD is
-  signal a_s, b_s, c_s, c_s2, c_s3, c_s31, s : std_logic;
+  signal a_s, b_s, c_s, c_s2, c_s3, c_s31, s, z1, z2, z3 : std_logic;
   signal ulp, guardf, guards, round, ulp3, guardf3, guards3, round3 : std_logic;
   signal marume : std_logic;
   signal a_e, b_e, c_e, c_e2, c_e22, c_e3, c_e4, c_e5,  e_diff : std_logic_vector (7 downto 0);
-  signal a_m, b_m, c_m4, c_m5, c_m6 : std_logic_vector (22 downto 0);
+  signal a_m, b_m, c_m4, c_m41, c_m5, c_m6 : std_logic_vector (22 downto 0);
   signal l_mm : std_logic_vector (24 downto 0);
   signal w_m,  w_m2, l_m, l_m2 : std_logic_vector (27 downto 0);
   signal c_m, c_m2, c_m3 : std_logic_vector (27 downto 0);
   signal e_diff_5, shift, shift2,  shift3 : std_logic_vector (4 downto 0);
+  signal a, b, c1, c2, c3, c : std_logic_vector (31 downto 0);
 
   component BarrelShifterRight25
     port(
@@ -60,6 +61,8 @@ begin
   -- 符号部、指数部、仮数部をわける 
   process(CLK) begin
     if(CLK'event and CLK='1') then
+      a <= input_a;
+      b <= input_b;
       a_s <= input_a(31);
       b_s <= input_b(31);
       a_m <= input_a(22 downto 0);
@@ -69,7 +72,13 @@ begin
     end if;
   end process;
 
+   c1 <= a when (b = "00000000000000000000000000000000")
+    else b when (a = "00000000000000000000000000000000")
+               else  "11111111111111111111111111111111";
 
+   z1 <= '1' when ((a = "00000000000000000000000000000000") or(b = "00000000000000000000000000000000"))
+    else '0';
+ 
  --指数部の差分をとりシフトを行う
     w_m <= "01" & a_m & "000" when ((a_e > b_e) or ((a_e = b_e) and (a_m > b_m))) 
     else   "01" & b_m & "000";
@@ -96,6 +105,8 @@ begin
 --２クロック目
   process(CLK) begin
     if(CLK'event and CLK='1') then
+      c2   <= c1;
+      z2   <= z1;
       c_e2 <= c_e;
       w_m2 <= w_m;
       l_m2 <= l_m;
@@ -109,12 +120,13 @@ begin
 
     shift <= Leading_zero(c_m(26 downto 0)); 
 
-    c_e22 <= c_e2 + 1 when ((c_m(27) = '1') or (c_m(26 downto 2) = "1111111111111111111111111"))
+  --指数部へのくりあがりが発生したときのc_eの調整
+    c_e22 <= c_e2 + 1 when ((c_m(27) = '1') or (c_m(26 downto 2) = "1111111111111111111111111") or (c_m(25 downto 1) = "1111111111111111111111111") or (c_m(24 downto 0) = "1111111111111111111111111"))
         else c_e2;
 
+  -- 指数部へのくりあがりが発生した時のc_mの調整
     c_m2 <= '0' & c_m(27 downto 1) when ((c_m(27) = '1') and (c_m(0) = '0'))
       else  '0' & c_m(27 downto 2) & '1' when ((c_m(27) = '1') and (c_m(0) = '1'))
-      else "0100000000000000000000000000" when (c_m(26 downto 2) = "1111111111111111111111111")
       else c_m;
 
     shift2 <= "00000" when (c_m(27) = '1')
@@ -141,6 +153,8 @@ begin
 --３クロック目
   process(CLK) begin
     if(CLK'event and CLK='1') then
+      c3   <= c2;
+      z3   <= z2;
       c_e3 <= c_e22;
       c_s3 <= c_s2;
       shift3 <= shift2;
@@ -152,6 +166,7 @@ begin
     end if;
   end process;
 
+  --丸めが発生するかどうかのパラメータ
   marume <= '1' when ((shift3(4 downto 2) = "000") and (guardf3 = '1') and ((ulp3 = '1') or (guards3 = '1') or (round3 = '1')))
        else '0';
 
@@ -162,17 +177,24 @@ begin
 
   U1 : BarrelShifterLeft23 port map(c_m3, shift3, c_m4);
 
-  c_m5 <= c_m4 + 1 when marume = '1'
-           else c_m4;
+  c_m41 <= "00000000000000000000000" when ((c_m4 = "11111111111111111111111") and (marume = '1'))
+      else c_m4;
+
+  c_m5 <= c_m41 + 1 when marume = '1'
+           else c_m41;
+
 
   c_m6 <= "00000000000000000000000" when ((c_e5 = "00000000") or (c_e5 = "11111111"))     else c_m5;
 
   c_s31 <= '0' when (c_e5 = "00000000")
       else c_s3;
 
+  c     <= c3 when (z3 = '1')
+      else c_s31 & c_e5 & c_m6; 
+
   process(CLK) begin
     if(CLK'event and CLK = '1') then
-      output <= c_s31 & c_e5 & c_m6;  
+      output <= c;  
     end if;
   end process;
 
